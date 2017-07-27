@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>cz.metacentrum.perun</groupId>
+	<artifactId>perun-java-cli</artifactId>
+	<version>1.0-SNAPSHOT</version>
+
+	<name>Java clients for Perun RPC API</name>
+
+	<developers>
+		<developer>
+			<name>Martin Kuba</name>
+			<email>makub@ics.muni.cz</email>
+			<organization>ÚVT MU Brno</organization>
+		</developer>
+	</developers>
+
+	<!-- Spring Platform as parent project - this project inherits versions of dependencies and plugins -->
+	<!-- see http://docs.spring.io/platform/docs/current/reference/htmlsingle/#getting-started-using-spring-io-platform-maven -->
+	<!-- update Spring by changing the version here to the current release displayed at http://platform.spring.io/platform/ -->
+	<parent>
+		<groupId>io.spring.platform</groupId>
+		<artifactId>platform-bom</artifactId>
+		<version>Brussels-SR3</version>
+		<relativePath/>
+	</parent>
+
+	<!-- common environmental and version properties-->
+	<properties>
+		<!-- property used by spring-boot-starter-parent project to define maven.compiler.source and maven.compiler.target
+			 properties that in turn are used by maven-compiler-plugin to specify java source and target version -->
+		<java.version>8</java.version>
+
+		<!-- USE UTF-8 in whole project -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-logging</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-cli</groupId>
+			<artifactId>commons-cli</artifactId>
+		</dependency>
+	</dependencies>
+	
+</project>
