@@ -34,7 +34,7 @@ public class CreateSponsoredMember {
 		options.addOption(Option.builder("p").required(true).hasArg().longOpt("httppassword").desc("HTTP Basic Auth password").build());
 		options.addOption(Option.builder("d").required(false).hasArg().longOpt("dev").desc("Perun development instance infix (makub,zlamal,etc.)").build());
 
-		options.addOption(Option.builder("vo").required(false).hasArg().desc("virtual organization id").build());
+		options.addOption(Option.builder("vo").required(true).hasArg().desc("virtual organization id").build());
 		options.addOption(Option.builder("n").required(false).hasArg().longOpt("namespace").desc("namespace").build());
 		options.addOption(Option.builder("gn").required(true).hasArg().longOpt("guestName").desc("guest full name or description").build());
 		options.addOption(Option.builder("gp").required(true).hasArg().longOpt("password").desc("guest password").build());
@@ -59,7 +59,7 @@ public class CreateSponsoredMember {
 		//make call
 		Map<String, Object> map = new LinkedHashMap<>();
 
-		map.put("vo", commandLine.hasOption("vo")? commandLine.getOptionValue("vo") : 3868);
+		map.put("vo", Integer.parseInt(commandLine.getOptionValue("vo")) );
 		map.put("guestName", commandLine.getOptionValue("guestName"));
 		map.put("password", commandLine.getOptionValue("password"));
 		map.put("namespace", commandLine.hasOption("n")? commandLine.getOptionValue("n") : "dummy");
