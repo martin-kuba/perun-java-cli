@@ -32,7 +32,7 @@ public class CreateSponsoredMember {
 		Options options = new Options();
 		options.addOption(Option.builder("u").required(true).hasArg().longOpt("httpuser").desc("HTTP Basic Auth user").build());
 		options.addOption(Option.builder("p").required(true).hasArg().longOpt("httppassword").desc("HTTP Basic Auth password").build());
-		options.addOption(Option.builder("d").required(false).hasArg().longOpt("dev").desc("Perun development instance infix (makub,zlamal,etc.)").build());
+		options.addOption(Option.builder("i").required(false).hasArg().longOpt("perun-url").desc("Perun URL i.e https://perun-dev.meta.zcu.cz/krb/rpc-makub").build());
 
 		options.addOption(Option.builder("vo").required(true).hasArg().desc("virtual organization id").build());
 		options.addOption(Option.builder("n").required(false).hasArg().longOpt("namespace").desc("namespace").build());
@@ -49,7 +49,11 @@ public class CreateSponsoredMember {
 		}
 		String username = commandLine.getOptionValue("u");
 		String password = commandLine.getOptionValue("p");
-		String dev = commandLine.hasOption("d") ? "-"+commandLine.getOptionValue("d") : "";
+		String perunUrl = System.getenv("PERUN_URL");
+		if(commandLine.hasOption("i")) {
+			perunUrl = commandLine.getOptionValue("i");
+		}
+		if(perunUrl==null) perunUrl = "https://perun-dev.meta.zcu.cz/krb/rpc";
 
 		//prepare basic auth
 		List<ClientHttpRequestInterceptor> interceptors = Collections.singletonList(new BasicAuthorizationInterceptor(username, password));
@@ -66,8 +70,9 @@ public class CreateSponsoredMember {
 		map.put("extSourceName", "https://idp2.ics.muni.cz/idp/shibboleth");
 		map.put("extLogin", commandLine.getOptionValue("uco")+"@muni.cz");
 
+		String actionUrl = perunUrl + "/json/membersManager/createSponsoredMember";
 		try {
-			JsonNode jsonNode = restTemplate.postForObject("https://perun-dev.meta.zcu.cz/krb/rpc" + dev + "/json/membersManager/createSponsoredMember", map, JsonNode.class);
+			JsonNode jsonNode = restTemplate.postForObject(actionUrl, map, JsonNode.class);
 			System.out.println("member.id : " + jsonNode.path("id"));
 			System.out.println("member.sponsored : " + jsonNode.path("sponsored").asBoolean());
 			System.out.println("user.id : " + jsonNode.path("userId"));
@@ -85,7 +90,7 @@ public class CreateSponsoredMember {
 		} catch (HttpClientErrorException ex) {
 			MediaType contentType = ex.getResponseHeaders().getContentType();
 			String body = ex.getResponseBodyAsString();
-			log.error("HTTP ERROR "+ex.getRawStatusCode()+" Content-Type: "+ contentType);
+			log.error("HTTP ERROR "+ex.getRawStatusCode()+" URL "+actionUrl+" Content-Type: "+ contentType);
 			if("json".equals(contentType.getSubtype())) {
 				log.error(new ObjectMapper().readValue(body, JsonNode.class).path("message").asText());
 			} else {
