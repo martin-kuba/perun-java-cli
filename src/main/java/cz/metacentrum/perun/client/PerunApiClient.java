@@ -2,10 +2,6 @@ package cz.metacentrum.perun.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import cz.metacentrum.perun.client.commands.AddSponsor;
-import cz.metacentrum.perun.client.commands.CreateSponsoredMember;
-import cz.metacentrum.perun.client.commands.GetRichMember;
-import cz.metacentrum.perun.client.commands.SponsorRole;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -13,6 +9,7 @@ import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -21,8 +18,11 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -80,28 +80,34 @@ public class PerunApiClient {
 	}
 
 	public static void main(String[] args) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException, ParseException {
-		PerunCommand[] commands = new PerunCommand[] {
-				new GetRichMember(),
-				new CreateSponsoredMember(),
-				new AddSponsor(),
-				new SponsorRole()
-		};
-
+		//find all classes implementing commands
+		Reflections reflections = new Reflections("cz.metacentrum.perun.client.commands");
+		List<Class<? extends PerunCommand>> classes = new ArrayList<>(reflections.getSubTypesOf(PerunCommand.class));
+		classes.sort(Comparator.comparing(Class::getSimpleName));
+		List<PerunCommand> commands = new ArrayList<>(classes.size());
+		for (Class<? extends PerunCommand> aClass : classes) {
+			commands.add(aClass.newInstance());
+		}
+		//if no arguments specified, print list of available commands
 		if (args.length == 0) {
 			System.err.println("Usage: <command> <options>");
-			System.err.println("Available commands:");
+			System.err.println();
+			System.err.println("run a command without options to see a list of its available options");
+			System.err.println();
+			System.err.println("available commands:");
 			for (PerunCommand command : commands) {
-				System.err.println("  " + command.getClass().getSimpleName()+" ... "+command.getCommandDescription());
+				System.err.println("  " + command.getClass().getSimpleName() + " ... " + command.getCommandDescription());
 			}
 			System.exit(1);
 		}
+		//call the command from class specified as first argument
 		String[] options = args.length == 1 ? new String[]{} : Arrays.copyOfRange(args, 1, args.length);
 		for (PerunCommand command : commands) {
 			if (command.getClass().getSimpleName().equals(args[0])) {
-				call(command,options);
+				call(command, options);
 				return;
 			}
 		}
-		System.err.println("Command not recognized: "+args[0]);
+		System.err.println("Command not recognized: " + args[0]);
 	}
 }
