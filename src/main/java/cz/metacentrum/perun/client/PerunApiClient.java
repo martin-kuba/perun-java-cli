@@ -2,6 +2,10 @@ package cz.metacentrum.perun.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.metacentrum.perun.client.commands.AddSponsor;
+import cz.metacentrum.perun.client.commands.CreateSponsoredMember;
+import cz.metacentrum.perun.client.commands.GetRichMember;
+import cz.metacentrum.perun.client.commands.SponsorRole;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -12,16 +16,13 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.InterceptingClientHttpRequestFactory;
-import org.springframework.http.client.support.BasicAuthorizationInterceptor;
+import org.springframework.security.kerberos.client.KerberosRestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,67 +34,21 @@ import java.util.Map;
 public class PerunApiClient {
 
 	private final static Logger log = LoggerFactory.getLogger(PerunApiClient.class);
-	private OptionsModifier om;
-	private ParametersModifier pm;
-	private RpcPathModifier rpcPathModifier;
-	private String rpcPath;
 
-	@FunctionalInterface
-	public interface OptionsModifier {
-		void addOptions(Options options);
-	}
-
-	@FunctionalInterface
-	public interface ParametersModifier {
-		void addParameters(Map<String, Object> params, CommandLine commandLine);
-	}
-
-	@FunctionalInterface
-	public interface RpcPathModifier {
-		String build(String rpcPath, CommandLine commandLine);
-	}
-
-	public void modifyRpcPath(RpcPathModifier rpcPathModifier) {
-		this.rpcPathModifier = rpcPathModifier;
-	}
-
-	/**
-	 * Creates a client for Perun RPC API.
-	 * Predefined command line options are:
-	 * <li>
-	 * <ul>-u --httpuser</ul>
-	 * <ul>-p --httppassword</ul>
-	 * <ul>-i --perun-url</ul>
-	 * </li>
-	 *
-	 * @param rpcPath part of URL selecting called method
-	 * @param om      lambda for modifying CLI options
-	 * @param pm      lambda for setting request parameters
-	 */
-	public PerunApiClient(String rpcPath, OptionsModifier om, ParametersModifier pm) {
-		this.om = om;
-		this.pm = pm;
-		this.rpcPath = rpcPath;
-	}
-
-	public JsonNode call(String[] cliArgs) throws IOException, ParseException {
+	public static void call(PerunCommand command, String[] cliArgs) throws IOException, ParseException {
 		Options options = new Options();
-		options.addOption(Option.builder("u").required(true).hasArg().longOpt("httpuser").desc("HTTP Basic Auth user").build());
-		options.addOption(Option.builder("p").required(true).hasArg().longOpt("httppassword").desc("HTTP Basic Auth password").build());
 		options.addOption(Option.builder("i").required(false).hasArg().longOpt("perun-url").desc("Perun URL i.e https://perun-dev.meta.zcu.cz/krb/rpc-makub").build());
 
-		om.addOptions(options);
+		command.addOptions(options);
 
 		CommandLine commandLine;
 		try {
 			commandLine = new DefaultParser().parse(options, cliArgs);
 		} catch (MissingOptionException ex) {
-			new HelpFormatter().printHelp(CreateSponsoredMember.class.getSimpleName(), options);
+			new HelpFormatter().printHelp(command.getClass().getSimpleName(), options);
 			System.exit(1);
-			return null;
+			return;
 		}
-		String username = commandLine.getOptionValue("u");
-		String password = commandLine.getOptionValue("p");
 		String perunUrl = System.getenv("PERUN_URL");
 		if (commandLine.hasOption("i")) {
 			perunUrl = commandLine.getOptionValue("i");
@@ -101,20 +56,16 @@ public class PerunApiClient {
 		if (perunUrl == null) perunUrl = "https://perun-dev.meta.zcu.cz/krb/rpc";
 
 		//prepare basic auth
-		List<ClientHttpRequestInterceptor> interceptors = Collections.singletonList(new BasicAuthorizationInterceptor(username, password));
-		RestTemplate restTemplate = new RestTemplate();
-		restTemplate.setRequestFactory(new InterceptingClientHttpRequestFactory(restTemplate.getRequestFactory(), interceptors));
+		KerberosRestTemplate restTemplate = new KerberosRestTemplate(null, "-");
 
 		//make call
 		Map<String, Object> map = new LinkedHashMap<>();
-		pm.addParameters(map, commandLine);
+		command.addParameters(map, commandLine);
 
-		if (rpcPathModifier != null) rpcPath = rpcPathModifier.build(rpcPath, commandLine);
-		String actionUrl = perunUrl + rpcPath;
+		String actionUrl = perunUrl + command.getUrlPart(commandLine);
 
 		try {
-			return restTemplate.postForObject(actionUrl, map, JsonNode.class);
-
+			command.processResponse(restTemplate.postForObject(actionUrl, map, JsonNode.class));
 		} catch (HttpClientErrorException ex) {
 			MediaType contentType = ex.getResponseHeaders().getContentType();
 			String body = ex.getResponseBodyAsString();
@@ -125,7 +76,32 @@ public class PerunApiClient {
 				log.error(ex.getMessage());
 			}
 			System.exit(1);
-			return null;
 		}
+	}
+
+	public static void main(String[] args) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException, ParseException {
+		PerunCommand[] commands = new PerunCommand[] {
+				new GetRichMember(),
+				new CreateSponsoredMember(),
+				new AddSponsor(),
+				new SponsorRole()
+		};
+
+		if (args.length == 0) {
+			System.err.println("Usage: <command> <options>");
+			System.err.println("Available commands:");
+			for (PerunCommand command : commands) {
+				System.err.println("  " + command.getClass().getSimpleName()+" ... "+command.getCommandDescription());
+			}
+			System.exit(1);
+		}
+		String[] options = args.length == 1 ? new String[]{} : Arrays.copyOfRange(args, 1, args.length);
+		for (PerunCommand command : commands) {
+			if (command.getClass().getSimpleName().equals(args[0])) {
+				call(command,options);
+				return;
+			}
+		}
+		System.err.println("Command not recognized: "+args[0]);
 	}
 }

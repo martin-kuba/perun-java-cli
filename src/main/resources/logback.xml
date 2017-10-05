@@ -15,6 +15,7 @@
 
 	<logger name="org.springframework" level="warn"/>
 	<logger name="org.springframework.web.client" level="info"/>
+	<logger name="org.apache.http.impl.client" level="error"/>
 	<logger name="cz.metacentrum" level="debug"/>
 
 </configuration>
