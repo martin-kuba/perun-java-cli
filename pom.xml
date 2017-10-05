@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>io.spring.platform</groupId>
 		<artifactId>platform-bom</artifactId>
-		<version>Brussels-SR3</version>
+		<version>Brussels-SR5</version>
 		<relativePath/>
 	</parent>
 
@@ -38,7 +38,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-		<!-- Main-Class fro MANIFEST.MF -->
+		<!-- Main-Class for MANIFEST.MF -->
 		<start-class>cz.metacentrum.perun.client.PerunApiClient</start-class>
 	</properties>
 
@@ -50,6 +50,7 @@
 				<artifactId>maven-shade-plugin</artifactId>
 				<!-- Main-Class taken from property ${start-class} -->
 				<configuration>
+					<finalName>perun-cli</finalName>
 					<createDependencyReducedPom>false</createDependencyReducedPom>
 				</configuration>
 			</plugin>
