@@ -10,20 +10,20 @@ import org.apache.commons.cli.Options;
 import java.util.Map;
 
 /**
- * Gets VO member with its attributes.
+ * Gets user with its attributes.
  *
  * @author Martin Kuba makub@ics.muni.cz
  */
-public class GetRichMember extends PerunCommand {
+public class GetRichUser extends PerunCommand {
 
 	@Override
 	public String getCommandDescription() {
-		return "Gets VO member with its attributes";
+		return "Gets user with its attributes";
 	}
 
 	@Override
 	public String getUrlPart(CommandLine commandLine) {
-		return "/json/membersManager/getRichMember";
+		return "/json/usersManager/getRichUserWithAttributes";
 	}
 
 	@Override

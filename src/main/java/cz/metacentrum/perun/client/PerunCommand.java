@@ -20,7 +20,7 @@ public abstract class PerunCommand {
 	public void addOptions(Options options) {
 	}
 
-	public void addParameters(Map<String, Object> params, CommandLine commandLine) {
+	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
 	}
 
 	public void processResponse(JsonNode resp) {

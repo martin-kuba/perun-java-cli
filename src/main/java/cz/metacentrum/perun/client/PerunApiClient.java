@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.security.kerberos.client.KerberosRestTemplate;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +35,24 @@ import java.util.Map;
 public class PerunApiClient {
 
 	private final static Logger log = LoggerFactory.getLogger(PerunApiClient.class);
+
+	public static class RpcCallsContext {
+		private final RestTemplate restTemplate;
+		private final String perunUrl;
+
+		public RpcCallsContext(RestTemplate restTemplate,String perunUrl) {
+			this.restTemplate = restTemplate;
+			this.perunUrl = perunUrl;
+		}
+
+		public RestTemplate getRestTemplate() {
+			return restTemplate;
+		}
+
+		public String getPerunUrl() {
+			return perunUrl;
+		}
+	}
 
 	public static void call(PerunCommand command, String[] cliArgs) throws IOException, ParseException {
 		Options options = new Options();
@@ -60,22 +79,30 @@ public class PerunApiClient {
 
 		//make call
 		Map<String, Object> map = new LinkedHashMap<>();
-		command.addParameters(map, commandLine);
+		RpcCallsContext rpcCallsContext = new RpcCallsContext(restTemplate, perunUrl);
+		command.addParameters(rpcCallsContext, map, commandLine);
 
-		String actionUrl = perunUrl + command.getUrlPart(commandLine);
+		JsonNode resp = callPerunRpc(restTemplate, map, perunUrl + command.getUrlPart(commandLine));
+		command.processResponse(resp);
+	}
 
+	public static JsonNode callPerunRpc(RestTemplate restTemplate, Map<String, Object> parametersMap, String actionUrl)  {
 		try {
-			command.processResponse(restTemplate.postForObject(actionUrl, map, JsonNode.class));
+			return restTemplate.postForObject(actionUrl, parametersMap, JsonNode.class);
 		} catch (HttpClientErrorException ex) {
 			MediaType contentType = ex.getResponseHeaders().getContentType();
 			String body = ex.getResponseBodyAsString();
 			log.error("HTTP ERROR " + ex.getRawStatusCode() + " URL " + actionUrl + " Content-Type: " + contentType);
 			if ("json".equals(contentType.getSubtype())) {
-				log.error(new ObjectMapper().readValue(body, JsonNode.class).path("message").asText());
+				try {
+					log.error(new ObjectMapper().readValue(body, JsonNode.class).path("message").asText());
+				} catch (IOException e) {
+					log.error("cannot parse response body: "+body);
+				}
 			} else {
 				log.error(ex.getMessage());
 			}
-			System.exit(1);
+			throw new RuntimeException(ex);
 		}
 	}
 

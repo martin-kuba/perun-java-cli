@@ -1,6 +1,7 @@
 package cz.metacentrum.perun.client.commands;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import cz.metacentrum.perun.client.PerunApiClient;
 import cz.metacentrum.perun.client.PerunCommand;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -25,7 +26,7 @@ public class SponsorRole extends PerunCommand {
 	}
 
 	@Override
-	public void addParameters(Map<String, Object> params, CommandLine commandLine) {
+	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
 		params.put("vo", commandLine.getOptionValue("vo"));
 		if (commandLine.hasOption("user")) {
 			params.put("user", Integer.parseInt(commandLine.getOptionValue("user")));
