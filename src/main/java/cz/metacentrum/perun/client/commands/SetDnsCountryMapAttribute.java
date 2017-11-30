@@ -38,9 +38,18 @@ public class SetDnsCountryMapAttribute extends PerunCommand {
 		}
 	}
 
+	private void getAttrValue(PerunApiClient.CommandContext ctx, LinkedHashMap<String, Object> attrDef, String tld) {
+		Map<String, Object> params = new LinkedHashMap<>();
+		params.put("attributeName", "urn:perun:entityless:attribute-def:def:dnsStateMapping");
+		params.put("key", tld);
+		JsonNode res = PerunApiClient.callPerunRpc(ctx, params, "/json/attributesManager/getAttribute");
+		log.debug("got {}",res);
+	}
+
 	private void setAttrValue(PerunApiClient.CommandContext ctx, LinkedHashMap<String, Object> attrDef, String tld, String country) {
 		log.debug("setting value {}={}",tld,country);
 		Map<String, Object> params = new LinkedHashMap<>();
+		attrDef.put("value",country);
 		params.put("attribute", attrDef);
 		params.put("key", tld);
 		PerunApiClient.callPerunRpc(ctx, params, "/json/attributesManager/setAttribute");
