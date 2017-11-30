@@ -26,7 +26,8 @@ public class CreateSponsoredMember extends PerunCommand {
 	}
 
 	@Override
-	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
+	public void addParameters(PerunApiClient.CommandContext ctx, Map<String, Object> params) {
+		CommandLine commandLine = ctx.getCommandLine();
 		params.put("vo", Integer.parseInt(commandLine.getOptionValue("vo")));
 		params.put("guestName", commandLine.getOptionValue("guestName"));
 		params.put("password", commandLine.getOptionValue("password"));

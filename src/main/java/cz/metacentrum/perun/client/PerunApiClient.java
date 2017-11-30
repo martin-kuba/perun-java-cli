@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,13 +39,15 @@ public class PerunApiClient {
 
 	private final static Logger log = LoggerFactory.getLogger(PerunApiClient.class);
 
-	public static class RpcCallsContext {
+	public static class CommandContext {
 		private final RestTemplate restTemplate;
 		private final String perunUrl;
+		private final CommandLine commandLine;
 
-		public RpcCallsContext(RestTemplate restTemplate, String perunUrl) {
+		public CommandContext(RestTemplate restTemplate, String perunUrl, CommandLine commandLine) {
 			this.restTemplate = restTemplate;
 			this.perunUrl = perunUrl;
+			this.commandLine = commandLine;
 		}
 
 		public RestTemplate getRestTemplate() {
@@ -56,16 +57,23 @@ public class PerunApiClient {
 		public String getPerunUrl() {
 			return perunUrl;
 		}
+
+		public CommandLine getCommandLine() {
+			return commandLine;
+		}
 	}
 
 	public static void call(PerunCommand command, String[] cliArgs) throws IOException, ParseException {
+		//prepare CLI options
+		//first options common to all commands
 		Options options = new Options();
 		options.addOption(Option.builder("i").required(false).hasArg().longOpt("perun-url").desc("Perun URL i.e https://perun-dev.meta.zcu.cz/krb/rpc-makub").build());
 		options.addOption(Option.builder("u").required(false).hasArg().longOpt("httpuser").desc("HTTP Basic Auth user").build());
 		options.addOption(Option.builder("p").required(false).hasArg().longOpt("httppassword").desc("HTTP Basic Auth password").build());
-
+		//then options specific to the command
 		command.addOptions(options);
 
+		//parse options
 		CommandLine commandLine;
 		try {
 			commandLine = new DefaultParser().parse(options, cliArgs);
@@ -80,7 +88,7 @@ public class PerunApiClient {
 		}
 		if (perunUrl == null) perunUrl = "https://perun-dev.meta.zcu.cz/krb/rpc";
 
-		//prepare basic auth
+		//prepare auth - basic or kerberos
 		RestTemplate restTemplate;
 		if (commandLine.hasOption("u") && commandLine.hasOption("p")) {
 			String username = commandLine.getOptionValue("u");
@@ -94,22 +102,19 @@ public class PerunApiClient {
 			log.info("using Kerberos ticket for authorization");
 		}
 
-		//make call
-		Map<String, Object> map = new LinkedHashMap<>();
-		RpcCallsContext rpcCallsContext = new RpcCallsContext(restTemplate, perunUrl);
-		command.addParameters(rpcCallsContext, map, commandLine);
-
-		JsonNode resp = callPerunRpc(restTemplate, map, perunUrl + command.getUrlPart(commandLine));
-		command.processResponse(resp);
+		//execute the command
+		CommandContext ctx = new CommandContext(restTemplate, perunUrl, commandLine);
+		command.executeCommand(ctx);
 	}
 
-	public static JsonNode callPerunRpc(RestTemplate restTemplate, Map<String, Object> parametersMap, String actionUrl) {
+	public static JsonNode callPerunRpc(PerunApiClient.CommandContext ctx, Map<String, Object> parametersMap, String methodUrl) {
+		String url = ctx.getPerunUrl() + methodUrl;
 		try {
-			return restTemplate.postForObject(actionUrl, parametersMap, JsonNode.class);
+			return ctx.getRestTemplate().postForObject(url, parametersMap, JsonNode.class);
 		} catch (HttpClientErrorException ex) {
 			MediaType contentType = ex.getResponseHeaders().getContentType();
 			String body = ex.getResponseBodyAsString();
-			log.error("HTTP ERROR " + ex.getRawStatusCode() + " URL " + actionUrl + " Content-Type: " + contentType);
+			log.error("HTTP ERROR " + ex.getRawStatusCode() + " URL " + url + " Content-Type: " + contentType);
 			if ("json".equals(contentType.getSubtype())) {
 				try {
 					log.error(new ObjectMapper().readValue(body, JsonNode.class).path("message").asText());

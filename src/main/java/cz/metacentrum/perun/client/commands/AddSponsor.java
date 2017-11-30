@@ -23,7 +23,8 @@ public class AddSponsor extends PerunCommand {
 	}
 
 	@Override
-	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
+	public void addParameters(PerunApiClient.CommandContext ctx, Map<String, Object> params) {
+		CommandLine commandLine = ctx.getCommandLine();
 		params.put("member", commandLine.getOptionValue("m"));
 		params.put("sponsor", commandLine.getOptionValue("s"));
 	}

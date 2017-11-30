@@ -26,7 +26,8 @@ public class SponsorRole extends PerunCommand {
 	}
 
 	@Override
-	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
+	public void addParameters(PerunApiClient.CommandContext ctx, Map<String, Object> params) {
+		CommandLine commandLine = ctx.getCommandLine();
 		params.put("vo", commandLine.getOptionValue("vo"));
 		if (commandLine.hasOption("user")) {
 			params.put("user", Integer.parseInt(commandLine.getOptionValue("user")));

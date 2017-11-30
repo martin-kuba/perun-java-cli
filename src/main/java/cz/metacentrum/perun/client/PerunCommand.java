@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -15,13 +16,28 @@ public abstract class PerunCommand {
 
 	public abstract String getCommandDescription();
 
-	public abstract String getUrlPart(CommandLine commandLine);
 
 	public void addOptions(Options options) {
 	}
 
-	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
+	/**
+	 * Default implementation calls just one Perun RPC method.
+	 * @param ctx
+	 */
+	public void executeCommand(PerunApiClient.CommandContext ctx) {
+		Map<String, Object> map = new LinkedHashMap<>();
+		this.addParameters(ctx, map);
+		JsonNode resp = PerunApiClient.callPerunRpc(ctx, map, this.getUrlPart(ctx.getCommandLine()));
+		this.processResponse(resp);
 	}
+
+	public void addParameters(PerunApiClient.CommandContext ctx, Map<String, Object> params) {
+	}
+
+	public String getUrlPart(CommandLine commandLine) {
+		return "";
+	}
+
 
 	public void processResponse(JsonNode resp) {
 	}

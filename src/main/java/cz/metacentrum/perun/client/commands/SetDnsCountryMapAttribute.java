@@ -1,7 +1,6 @@
 package cz.metacentrum.perun.client.commands;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import cz.metacentrum.perun.client.PerunApiClient;
 import cz.metacentrum.perun.client.PerunCommand;
 import org.apache.commons.cli.CommandLine;
@@ -12,7 +11,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -26,34 +24,31 @@ public class SetDnsCountryMapAttribute extends PerunCommand {
 	private final static Logger log = LoggerFactory.getLogger(SetDnsCountryMapAttribute.class);
 
 	@Override
-	public void addOptions(Options options) {
+	public String getCommandDescription() {
+		return "Sets value for attribute urn:perun:entityless:attribute-def:def:dnsStateMapping";
 	}
+
 
 	@Override
-	public void addParameters(PerunApiClient.RpcCallsContext ctx, Map<String, Object> params, CommandLine commandLine) {
-		//get attribute key
-		log.debug("getting attribute id");
-		Map<String, Object> map = new LinkedHashMap<>();
-		map.put("attributeName","urn:perun:entityless:attribute-def:def:dnsStateMapping");
-		JsonNode attr = PerunApiClient.callPerunRpc(ctx.getRestTemplate(), map, ctx.getPerunUrl() + "/json/attributesManager/getAttributeDefinition");
-		log.debug("attr: {}",attr);
-		LinkedHashMap<String,Object> atr = new LinkedHashMap<>();
-
-		//parameter attribute
-		atr.put("id", attr.path("id").asInt());
-		atr.put("namespace",attr.path("namespace").asText());
-		atr.put("type",attr.path("type").asText());
-		atr.put("friendlyName",attr.path("friendlyName").asText());
-		params.put("attribute", atr);
-		//atribute value
-		LinkedHashMap<String,Object> dns2State = new LinkedHashMap<>();
-		loadCountries(ctx,dns2State);
-		atr.put("value",dns2State);
-		//parameter key - constant
-		params.put("key", "config");
+	public void executeCommand(PerunApiClient.CommandContext ctx) {
+		LinkedHashMap<String, Object> attrDef = getAttrDef(ctx);
+		LinkedHashMap<String, String> tld2Country = loadCountries();
+		for(Map.Entry<String,String> entry : tld2Country.entrySet()) {
+			setAttrValue(ctx, attrDef, entry.getKey(),entry.getValue());
+		}
 	}
 
-	private void loadCountries(PerunApiClient.RpcCallsContext ctx, LinkedHashMap<String, Object> dns2State) {
+	private void setAttrValue(PerunApiClient.CommandContext ctx, LinkedHashMap<String, Object> attrDef, String tld, String country) {
+		log.debug("setting value {}={}",tld,country);
+		Map<String, Object> params = new LinkedHashMap<>();
+		params.put("attribute", attrDef);
+		params.put("key", tld);
+		PerunApiClient.callPerunRpc(ctx, params, "/json/attributesManager/setAttribute");
+	}
+
+
+	private LinkedHashMap<String, String> loadCountries() {
+		LinkedHashMap<String, String> dns2State = new LinkedHashMap<>();
 		RestTemplate restTemplate = new RestTemplate();
 		restTemplate.getInterceptors().add((request, body, execution) -> {
 			ClientHttpResponse response = execution.execute(request,body);
@@ -66,7 +61,7 @@ public class SetDnsCountryMapAttribute extends PerunCommand {
 			for(JsonNode tld : country.path("tld")) {
 				String tldName = tld.asText();
 				dns2State.put(tldName,countryName);
-				log.info("adding {} => {}",tldName,countryName);
+				log.trace("adding {} => {}",tldName,countryName);
 			}
 		}
 		//by hand
@@ -75,20 +70,24 @@ public class SetDnsCountryMapAttribute extends PerunCommand {
 		dns2State.put("github.extidp.cesnet.cz","");
 		dns2State.put("google.extidp.cesnet.cz","");
 		dns2State.put("facebook.extidp.cesnet.cz","");
+		return dns2State;
 	}
 
-	@Override
-	public String getCommandDescription() {
-		return "Sets value for attribute urn:perun:entityless:attribute-def:def:dnsStateMapping";
+	private LinkedHashMap<String,Object> getAttrDef(PerunApiClient.CommandContext ctx) {
+		//get attribute key
+		log.debug("getting attribute id");
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("attributeName","urn:perun:entityless:attribute-def:def:dnsStateMapping");
+		JsonNode attr = PerunApiClient.callPerunRpc(ctx, map, "/json/attributesManager/getAttributeDefinition");
+		log.debug("attr: {}",attr);
+		//attribute def
+		LinkedHashMap<String,Object> atr = new LinkedHashMap<>();
+		atr.put("id", attr.path("id").asInt());
+		atr.put("namespace",attr.path("namespace").asText());
+		atr.put("type",attr.path("type").asText());
+		atr.put("friendlyName",attr.path("friendlyName").asText());
+		return atr;
 	}
 
-	@Override
-	public String getUrlPart(CommandLine commandLine) {
-		return "/json/attributesManager/setAttribute";
-	}
 
-	@Override
-	public void processResponse(JsonNode resp) {
-		System.out.println("Done ");
-	}
 }
