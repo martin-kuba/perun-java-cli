@@ -66,7 +66,8 @@ public class SetDnsCountryMapAttribute extends PerunCommand {
 		});
 		JsonNode countries = restTemplate.getForObject("https://raw.githubusercontent.com/mledoze/countries/master/countries.json", JsonNode.class);
 		for(JsonNode country : countries) {
-			String countryName = country.path("name").path("common").asText();
+			//String countryName = country.path("name").path("common").asText();
+			String countryName = country.path("cca2").asText();
 			for(JsonNode tld : country.path("tld")) {
 				String tldName = tld.asText();
 				dns2State.put(tldName,countryName);
@@ -74,7 +75,7 @@ public class SetDnsCountryMapAttribute extends PerunCommand {
 			}
 		}
 		//by hand
-		dns2State.put(".cz","Czech Republic");
+		//dns2State.put(".cz","CZ");
 		dns2State.put("hostel.eduid.cz","");
 		dns2State.put("github.extidp.cesnet.cz","");
 		dns2State.put("google.extidp.cesnet.cz","");
